@@ -66,12 +66,56 @@
 <div class="login-page">
 	<% if (bgcount > 0 and currentBg.type == "mp4") then %>
 	<div class="video">
-		<video autoplay loop muted id="video">
-			<source src="<%=currentBg.url%>" type="video/mp4">
-		</video>
+		<video autoplay loop muted id="video" />
 	</div>
 	<div class="volume-control mute"></div>
 	<script>
+		// Lazy-load version
+		var videoDom = document.getElementById('video');
+		videoDom.style.opacity = 0;
+
+		var timer = -1;
+		videoDom.oncanplaythrough = function () {
+			var op = 0;
+			if (timer != -1) return;
+
+			timer = setInterval(function () {
+				if (op >= 0.98) {
+					videoDom.style.opacity = 1.0;
+					videoDom.style.filter = 'alpha(opacity=100)';
+					clearInterval(timer);
+				}
+
+				videoDom.style.opacity = op;
+				videoDom.style.filter = 'alpha(opacity=' + op * 100 + ")";
+				if (op < 0.6)
+					op += op ? (1.0 - op) * 0.05 : 0.01;
+				else
+					op += (1.0 - op) * 0.08;
+			}, 20);
+		}
+
+		var req = new XMLHttpRequest();
+		req.open('GET', '<%=currentBg.url%>', true);
+		req.responseType = 'blob';
+
+		req.onload = function () {
+			if (this.status == 200) {
+				var videoBlob = this.response;
+				var videoUrl = URL.createObjectURL(videoBlob);
+				videoDom.src = videoUrl;
+			}
+		}
+
+		req.onerror = function () {
+			if (console) {
+				console.error("Error! video could not be loaded");
+			}
+		}
+
+		req.send();
+		// End Lazy-load version
+
 		$(".volume-control").click(function(){
 			if($(this).hasClass("mute")){
 				$(this).removeClass("mute")
